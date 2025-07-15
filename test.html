@@ -2,31 +2,14 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OCR 테스트</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f4f4f4;
-    }
-    h1 {
-      color: #2c3e50;
-    }
-    input[type="file"] {
-      margin-top: 10px;
-    }
-    pre {
-      background: #fff;
-      padding: 20px;
-      border: 1px solid #ccc;
-      white-space: pre-wrap;
-      margin-top: 20px;
-    }
-    #loading {
-      color: #2980b9;
-      font-weight: bold;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+    h1 { color: #2c3e50; }
+    input[type="file"] { margin-top: 10px; }
+    pre { background: #fff; padding: 20px; border: 1px solid #ccc; white-space: pre-wrap; margin-top: 20px; }
+    #loading { color: #2980b9; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -36,41 +19,47 @@
   <div id="loading"></div>
   <pre id="result">[결과 출력 위치]</pre>
 
-  <!-- Tesseract.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
   <script>
-    document.getElementById('imageInput').addEventListener('change', function(event) {
+    const imageInput = document.getElementById('imageInput');
+    const loadingText = document.getElementById('loading');
+    const resultText = document.getElementById('result');
+
+    imageInput.addEventListener('change', async (event) => {
       const file = event.target.files[0];
       if (!file) return;
 
-      document.getElementById('loading').innerText = "🔍 텍스트 인식 중... (이미지 크기에 따라 수 초 소요)";
-      document.getElementById('result').innerText = "";
+      loadingText.innerText = "🔍 텍스트 인식 중... (이미지 크기에 따라 수 초 소요)";
+      resultText.innerText = "";
 
-      Tesseract.recognize(
-        file,
-        'kor+eng', // 한글 + 영어 OCR
-        {
-          logger: m => console.log(m)
-        }
-      ).then(({ data: { text } }) => {
-        document.getElementById('loading').innerText = "✅ 텍스트 인식 완료!";
-        document.getElementById('result').innerText = text;
+      try {
+        const { data: { text } } = await Tesseract.recognize(file, 'kor+eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              loadingText.innerText = `🔍 텍스트 인식 중... ${Math.round(m.progress * 100)}% 완료`;
+            }
+          }
+        });
 
-        // 자동 추출 예시 (좌표, 시간)
-        const lat = text.match(/위도[:：]?\s*([\d.]+)/);
-        const lon = text.match(/경도[:：]?\s*([\d.]+)/);
-        const time = text.match(/현지 시각[:：]?\s*([^\n]+)/);
+        loadingText.innerText = "✅ 텍스트 인식 완료!";
+        resultText.innerText = text;
+
+        // 간단한 좌표 및 시간 추출 (예: "위도: 37.123456")
+        const lat = text.match(/위도[:：]?\\s*([\\d.]+)/);
+        const lon = text.match(/경도[:：]?\\s*([\\d.]+)/);
+        const time = text.match(/현지 시각[:：]?\\s*([^\\n]+)/);
 
         if (lat || lon || time) {
-          document.getElementById('result').innerText += `\n\n📌 추출 정보:\n`;
-          if (lat) document.getElementById('result').innerText += `위도: ${lat[1]}\n`;
-          if (lon) document.getElementById('result').innerText += `경도: ${lon[1]}\n`;
-          if (time) document.getElementById('result').innerText += `현지 시각: ${time[1]}\n`;
+          resultText.innerText += "\\n\\n📌 추출 정보:\\n";
+          if (lat) resultText.innerText += `위도: ${lat[1]}\\n`;
+          if (lon) resultText.innerText += `경도: ${lon[1]}\\n`;
+          if (time) resultText.innerText += `현지 시각: ${time[1]}\\n`;
         }
-      }).catch(err => {
-        document.getElementById('loading').innerText = "❌ 오류 발생";
+
+      } catch (err) {
+        loadingText.innerText = "❌ 오류 발생: " + err.message;
         console.error(err);
-      });
+      }
     });
   </script>
 </body>
