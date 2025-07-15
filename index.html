@@ -82,7 +82,6 @@
         <p>아래 버튼을 클릭하여 스마트폰의 GPS 기반 위치 정보와 현재 시각을 확인합니다.</p>
         <p>대회 출사 진행 전<br>해당 웹페이지 화면 카메로 촬영<br><br>해당 작업이 필요한 이유는<br>아래 글(링크)에서 확인! <br><a href="https://smilemax.tistory.com/2887" target="_blank" rel="noopener noreferrer">https://smilemax.tistory.com/2887</a></p>
 
-        <button id="getLocationButton">내 위치 정보 가져오기</button>
         <div id="status"></div>
 
         <div class="info-box">
@@ -95,92 +94,96 @@
     </div>
 
     <script>
-        let timeIntervalId = null;
+    let timeIntervalId = null;
 
-        function updateLocalTime() {
-            const now = new Date();
-            const options = {
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                hour12: false
-            };
-            const localTimeFormatted = now.toLocaleString('ko-KR', options);
-            document.getElementById('localTime').innerText = localTimeFormatted;
+    function updateLocalTime() {
+        const now = new Date();
+        const options = {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        };
+        const localTimeFormatted = now.toLocaleString('ko-KR', options);
+        document.getElementById('localTime').innerText = localTimeFormatted;
+    }
+
+    function getLocationAndTime() {
+        document.getElementById('status').innerText = '위치 정보를 요청 중입니다... (브라우저 팝업 확인)';
+        document.getElementById('latitude').innerText = '가져오는 중...';
+        document.getElementById('longitude').innerText = '가져오는 중...';
+        document.getElementById('accuracy').innerText = '가져오는 중...';
+        document.getElementById('localTimeZone').innerText = '정보 확인 중...';
+        document.getElementById('localTime').innerText = '정보 확인 중...';
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+
+                    document.getElementById('latitude').innerText = lat.toFixed(6);
+                    document.getElementById('longitude').innerText = lon.toFixed(6);
+                    document.getElementById('accuracy').innerText = `${accuracy.toFixed(2)}`;
+
+                    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    document.getElementById('localTimeZone').innerText = timeZone;
+
+                    if (timeIntervalId !== null) {
+                        clearInterval(timeIntervalId);
+                    }
+
+                    updateLocalTime();
+                    timeIntervalId = setInterval(updateLocalTime, 1000);
+
+                    document.getElementById('status').innerText = '모든 정보 확인 완료!';
+                    document.getElementById('status').style.color = '#27ae60';
+                },
+                function (error) {
+                    let errorMessage = '';
+
+                    if (timeIntervalId !== null) {
+                        clearInterval(timeIntervalId);
+                        timeIntervalId = null;
+                    }
+
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = "위치 정보 접근이 거부되었습니다. 브라우저 설정에서 허용해주세요.";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = "위치 정보를 사용할 수 없습니다. (위성 신호 등 문제)";
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = "위치 정보를 가져오는 시간이 초과되었습니다.";
+                            break;
+                        case error.UNKNOWN_ERROR:
+                            errorMessage = "알 수 없는 오류가 발생했습니다.";
+                            break;
+                    }
+
+                    document.getElementById('status').innerText = `오류: ${errorMessage}`;
+                    document.getElementById('status').style.color = '#e74c3c';
+                    document.getElementById('latitude').innerText = '오류';
+                    document.getElementById('longitude').innerText = '오류';
+                    document.getElementById('accuracy').innerText = '오류';
+                    document.getElementById('localTimeZone').innerText = '오류';
+                    document.getElementById('localTime').innerText = '오류';
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
+        } else {
+            document.getElementById('status').innerText = "이 브라우저는 Geolocation API를 지원하지 않습니다.";
+            document.getElementById('status').style.color = '#e74c3c';
+            document.getElementById('latitude').innerText = 'N/A';
+            document.getElementById('longitude').innerText = 'N/A';
+            document.getElementById('accuracy').innerText = 'N/A';
         }
+    }
 
-        document.getElementById('getLocationButton').addEventListener('click', function () {
-            document.getElementById('status').innerText = '위치 정보를 요청 중입니다... (브라우저 팝업 확인)';
-            document.getElementById('latitude').innerText = '가져오는 중...';
-            document.getElementById('longitude').innerText = '가져오는 중...';
-            document.getElementById('accuracy').innerText = '가져오는 중...';
-            document.getElementById('localTimeZone').innerText = '정보 확인 중...';
-            document.getElementById('localTime').innerText = '정보 확인 중...';
+    // 자동 실행
+    window.onload = getLocationAndTime;
+</script>
 
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function (position) {
-                        const lat = position.coords.latitude;
-                        const lon = position.coords.longitude;
-                        const accuracy = position.coords.accuracy;
-
-                        document.getElementById('latitude').innerText = lat.toFixed(6);
-                        document.getElementById('longitude').innerText = lon.toFixed(6);
-                        document.getElementById('accuracy').innerText = `${accuracy.toFixed(2)}`;
-
-                        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                        document.getElementById('localTimeZone').innerText = timeZone;
-
-                        if (timeIntervalId !== null) {
-                            clearInterval(timeIntervalId);
-                        }
-
-                        updateLocalTime(); // 최초 1회
-                        timeIntervalId = setInterval(updateLocalTime, 1000); // 매초 갱신
-
-                        document.getElementById('status').innerText = '모든 정보 확인 완료!';
-                        document.getElementById('status').style.color = '#27ae60';
-                    },
-                    function (error) {
-                        let errorMessage = '';
-
-                        if (timeIntervalId !== null) {
-                            clearInterval(timeIntervalId);
-                            timeIntervalId = null;
-                        }
-
-                        switch (error.code) {
-                            case error.PERMISSION_DENIED:
-                                errorMessage = "위치 정보 접근이 거부되었습니다. 브라우저 설정에서 허용해주세요.";
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                errorMessage = "위치 정보를 사용할 수 없습니다. (위성 신호 등 문제)";
-                                break;
-                            case error.TIMEOUT:
-                                errorMessage = "위치 정보를 가져오는 시간이 초과되었습니다.";
-                                break;
-                            case error.UNKNOWN_ERROR:
-                                errorMessage = "알 수 없는 오류가 발생했습니다.";
-                                break;
-                        }
-
-                        document.getElementById('status').innerText = `오류: ${errorMessage}`;
-                        document.getElementById('status').style.color = '#e74c3c';
-                        document.getElementById('latitude').innerText = '오류';
-                        document.getElementById('longitude').innerText = '오류';
-                        document.getElementById('accuracy').innerText = '오류';
-                        document.getElementById('localTimeZone').innerText = '오류';
-                        document.getElementById('localTime').innerText = '오류';
-                    },
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                );
-            } else {
-                document.getElementById('status').innerText = "이 브라우저는 Geolocation API를 지원하지 않습니다.";
-                document.getElementById('status').style.color = '#e74c3c';
-                document.getElementById('latitude').innerText = 'N/A';
-                document.getElementById('longitude').innerText = 'N/A';
-                document.getElementById('accuracy').innerText = 'N/A';
-            }
-        });
-    </script>
 </body>
 </html>
